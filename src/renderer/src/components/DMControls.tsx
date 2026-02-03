@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useAppStore, useIsListening, useSceneMode } from '../store'
+import { useIsListening, useSceneMode } from '../store'
 import { KnowledgeModal } from './KnowledgeModal'
 
 export function DMControls() {

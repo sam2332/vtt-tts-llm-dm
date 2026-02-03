@@ -58,7 +58,9 @@ interface AppState {
   removeSpeaker: (id: string) => void
   
   addTranscript: (segment: TranscriptSegment) => void
+  addTranscriptSegment: (segment: TranscriptSegment) => void
   updateTranscript: (id: string, updates: Partial<TranscriptSegment>) => void
+  updateTranscriptSegment: (id: string, updates: Partial<TranscriptSegment>) => void
   clearTranscript: () => void
   
   addCharacter: (character: CharacterSheet) => void
@@ -109,7 +111,7 @@ const initialState = {
 
 export const useAppStore = create<AppState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       ...initialState,
       
       // Session actions
@@ -136,7 +138,15 @@ export const useAppStore = create<AppState>()(
       addTranscript: (segment) => set((state) => ({
         transcript: [...state.transcript, segment]
       })),
+      addTranscriptSegment: (segment) => set((state) => ({
+        transcript: [...state.transcript, segment]
+      })),
       updateTranscript: (id, updates) => set((state) => ({
+        transcript: state.transcript.map((t) => 
+          t.id === id ? { ...t, ...updates } : t
+        )
+      })),
+      updateTranscriptSegment: (id, updates) => set((state) => ({
         transcript: state.transcript.map((t) => 
           t.id === id ? { ...t, ...updates } : t
         )

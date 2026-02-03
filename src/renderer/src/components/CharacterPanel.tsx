@@ -1,39 +1,75 @@
+import { useState } from 'react'
 import { useCharacters } from '../store'
+import { CharacterSheetModal } from './CharacterSheetModal'
+import type { CharacterSheet } from '@shared/types'
 
 export function CharacterPanel() {
   const characters = useCharacters()
+  const [showModal, setShowModal] = useState(false)
+  const [editingCharacter, setEditingCharacter] = useState<CharacterSheet | undefined>(undefined)
+
+  const handleAddCharacter = () => {
+    setEditingCharacter(undefined)
+    setShowModal(true)
+  }
+
+  const handleEditCharacter = (character: CharacterSheet) => {
+    setEditingCharacter(character)
+    setShowModal(true)
+  }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="p-3 border-b border-surface-light">
-        <h2 className="font-bold text-sm">Character Sheets</h2>
-      </div>
+    <>
+      <div className="flex flex-col h-full">
+        <div className="p-3 border-b border-surface-light">
+          <h2 className="font-bold text-sm">Character Sheets</h2>
+        </div>
 
-      <div className="flex-1 overflow-y-auto p-3 space-y-3">
-        {characters.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-text-secondary text-sm mb-3">No characters yet</p>
-            <button className="btn-secondary text-sm">
+        <div className="flex-1 overflow-y-auto p-3 space-y-3">
+          {characters.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-text-secondary text-sm mb-3">No characters yet</p>
+              <button className="btn-secondary text-sm" onClick={handleAddCharacter}>
+                + Add Character
+              </button>
+            </div>
+          ) : (
+            characters.map((character) => (
+              <CharacterCard 
+                key={character.id} 
+                character={character}
+                onEdit={() => handleEditCharacter(character)}
+              />
+            ))
+          )}
+
+          {characters.length > 0 && (
+            <button 
+              className="w-full py-2 text-sm text-text-secondary hover:text-text-primary hover:bg-surface-light rounded-lg transition-colors"
+              onClick={handleAddCharacter}
+            >
               + Add Character
             </button>
-          </div>
-        ) : (
-          characters.map((character) => (
-            <CharacterCard key={character.id} character={character} />
-          ))
-        )}
-
-        {characters.length > 0 && (
-          <button className="w-full py-2 text-sm text-text-secondary hover:text-text-primary hover:bg-surface-light rounded-lg transition-colors">
-            + Add Character
-          </button>
-        )}
+          )}
+        </div>
       </div>
-    </div>
+
+      {showModal && (
+        <CharacterSheetModal 
+          character={editingCharacter} 
+          onClose={() => setShowModal(false)} 
+        />
+      )}
+    </>
   )
 }
 
-function CharacterCard({ character }: { character: ReturnType<typeof useCharacters>[0] }) {
+interface CharacterCardProps {
+  character: CharacterSheet
+  onEdit: () => void
+}
+
+function CharacterCard({ character, onEdit }: CharacterCardProps) {
   const statLabels = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA']
   const statValues = [
     character.stats.str,
@@ -59,7 +95,7 @@ function CharacterCard({ character }: { character: ReturnType<typeof useCharacte
             Level {character.level} {character.class}
           </p>
         </div>
-        <button className="btn-icon text-xs">✏️</button>
+        <button className="btn-icon text-xs" onClick={onEdit}>✏️</button>
       </div>
 
       {/* Stats Grid */}

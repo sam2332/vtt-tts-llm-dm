@@ -7,6 +7,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   getPlatform: () => ipcRenderer.invoke('get-platform'),
 
+  // Media permissions
+  getMediaAccessStatus: () => ipcRenderer.invoke('get-media-access-status'),
+  askForMediaAccess: () => ipcRenderer.invoke('ask-for-media-access'),
+
   // Window controls
   minimizeWindow: () => ipcRenderer.send('window-minimize'),
   maximizeWindow: () => ipcRenderer.send('window-maximize'),
@@ -33,21 +37,30 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Audio operations
   startAudioCapture: () => ipcRenderer.invoke('audio-start-capture'),
   stopAudioCapture: () => ipcRenderer.invoke('audio-stop-capture'),
+  isCapturing: () => ipcRenderer.invoke('audio-is-capturing'),
   getAudioDevices: () => ipcRenderer.invoke('audio-get-devices'),
+  sendAudioData: (data: Float32Array) => ipcRenderer.send('audio-data', data),
 
   // Python service operations
-  enrollSpeaker: (speakerId: string, audioData: ArrayBuffer) => 
+  pythonHealth: () => ipcRenderer.invoke('python-health'),
+  pythonStart: () => ipcRenderer.invoke('python-start'),
+  pythonStop: () => ipcRenderer.invoke('python-stop'),
+  enrollSpeaker: (speakerId: string, audioData: string) => 
     ipcRenderer.invoke('python-enroll-speaker', speakerId, audioData),
-  diarizeSpeech: (audioData: ArrayBuffer) => 
-    ipcRenderer.invoke('python-diarize', audioData),
-  transcribeSpeech: (audioData: ArrayBuffer) => 
+  transcribeSpeech: (audioData: string) => 
     ipcRenderer.invoke('python-transcribe', audioData),
-  detectIntent: (text: string) => 
-    ipcRenderer.invoke('python-detect-intent', text),
+  addKnowledge: (entry: unknown) => 
+    ipcRenderer.invoke('python-add-knowledge', entry),
+  searchKnowledge: (query: string, nResults?: number) => 
+    ipcRenderer.invoke('python-search-knowledge', query, nResults),
   synthesizeSpeech: (text: string, voice?: string) => 
     ipcRenderer.invoke('python-synthesize', text, voice),
 
   // LLM operations
+  llmHealth: () => ipcRenderer.invoke('llm-check-health'),
+  llmListModels: () => ipcRenderer.invoke('llm-list-models'),
+  llmSetModel: (model: string) => ipcRenderer.invoke('llm-set-model', model),
+  llmClearHistory: () => ipcRenderer.invoke('llm-clear-history'),
   generateDMResponse: (context: unknown) => 
     ipcRenderer.invoke('llm-generate-response', context),
   
@@ -70,18 +83,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   }
 })
 
-// Type definitions for the exposed API
-export interface ElectronAPI {
-  getAppVersion: () => Promise<string>
-  getPlatform: () => Promise<string>
-  minimizeWindow: () => void
-  maximizeWindow: () => void
-  closeWindow: () => void
-  // ... add more type definitions as needed
-}
-
-declare global {
-  interface Window {
-    electronAPI: ElectronAPI
-  }
-}
+// Type definitions are in src/renderer/src/electron.d.ts
+// The preload script exposes all these methods to the renderer

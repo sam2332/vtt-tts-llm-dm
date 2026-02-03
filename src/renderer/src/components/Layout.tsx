@@ -4,6 +4,7 @@ import { TranscriptFeed } from './TranscriptFeed'
 import { CharacterPanel } from './CharacterPanel'
 import { InitiativeTracker } from './InitiativeTracker'
 import { DMControls } from './DMControls'
+import { KnowledgePanel } from './KnowledgePanel'
 import { useAppStore, useSceneMode } from '../store'
 
 export function Layout() {
@@ -37,7 +38,7 @@ export function Layout() {
           </div>
           <div className="flex-1 overflow-y-auto">
             {sidebarTab === 'speakers' && <SpeakerPanel />}
-            {sidebarTab === 'knowledge' && <KnowledgeList />}
+            {sidebarTab === 'knowledge' && <KnowledgePanel />}
           </div>
         </aside>
 
@@ -80,35 +81,5 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
     >
       {children}
     </button>
-  )
-}
-
-function KnowledgeList() {
-  const knowledge = useAppStore((state) => state.knowledge)
-  
-  return (
-    <div className="p-3 space-y-2">
-      {knowledge.length === 0 ? (
-        <p className="text-text-secondary text-sm text-center py-4">
-          No knowledge entries yet.
-          <br />
-          Add campaign info using the controls below.
-        </p>
-      ) : (
-        knowledge.map((entry) => (
-          <div key={entry.id} className="card p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs uppercase tracking-wide text-text-secondary">
-                {entry.category}
-              </span>
-            </div>
-            <h4 className="font-medium text-sm">{entry.title}</h4>
-            <p className="text-text-secondary text-xs mt-1 line-clamp-2">
-              {entry.content}
-            </p>
-          </div>
-        ))
-      )}
-    </div>
   )
 }

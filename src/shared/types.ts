@@ -106,6 +106,7 @@ export interface AppSettings {
   llmTemperature: { combat: number; exploration: number; rp: number }
   dmVoice: string
   confidenceThreshold: number // below this, show popup
+  selectedMicrophone: string // device ID or 'default'
 }
 
 // Default settings
@@ -116,7 +117,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   llmModel: 'mistral:7b-instruct-q4_K_M',
   llmTemperature: { combat: 0.7, exploration: 0.9, rp: 0.8 },
   dmVoice: 'default',
-  confidenceThreshold: 0.6
+  confidenceThreshold: 0.6,
+  selectedMicrophone: 'default'
 }
 
 // Speaker color palette
