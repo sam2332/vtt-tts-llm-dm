@@ -12,6 +12,11 @@ const CHANNELS = 1
 const CHUNK_DURATION = 2000 // 2 seconds in ms
 const CHUNK_SIZE = (SAMPLE_RATE * CHUNK_DURATION) / 1000
 
+// Voice Activity Detection (VAD) configuration
+const VAD_ENERGY_THRESHOLD = 0.01  // RMS energy threshold (increase to reduce sensitivity)
+const VAD_ZERO_CROSSING_THRESHOLD = 0.1  // Speech typically has moderate zero crossings
+const VAD_MIN_SPEECH_SAMPLES = 800  // Minimum samples above threshold (~50ms at 16kHz)
+
 interface AudioChunk {
   data: Float32Array
   timestamp: Date
@@ -76,6 +81,54 @@ class AudioCapture extends EventEmitter {
   }
 
   /**
+   * Check if audio contains speech using energy-based VAD
+   */
+  private detectVoiceActivity(samples: Float32Array): boolean {
+    if (samples.length === 0) return false
+
+    // Calculate RMS energy
+    let sumSquares = 0
+    let zeroCrossings = 0
+    let samplesAboveThreshold = 0
+    const minEnergy = VAD_ENERGY_THRESHOLD * 0.5  // Per-sample threshold
+
+    for (let i = 0; i < samples.length; i++) {
+      const sample = samples[i]
+      sumSquares += sample * sample
+      
+      // Count samples with significant energy
+      if (Math.abs(sample) > minEnergy) {
+        samplesAboveThreshold++
+      }
+      
+      // Count zero crossings (speech has moderate zero crossings)
+      if (i > 0 && ((samples[i - 1] >= 0 && sample < 0) || (samples[i - 1] < 0 && sample >= 0))) {
+        zeroCrossings++
+      }
+    }
+
+    const rmsEnergy = Math.sqrt(sumSquares / samples.length)
+    const zeroCrossingRate = zeroCrossings / samples.length
+
+    // Voice activity detected if:
+    // 1. RMS energy is above threshold
+    // 2. Enough samples have significant energy
+    // 3. Zero crossing rate is in speech range (not too high = noise, not too low = silence)
+    const hasEnergy = rmsEnergy > VAD_ENERGY_THRESHOLD
+    const hasSufficientSamples = samplesAboveThreshold > VAD_MIN_SPEECH_SAMPLES
+    const hasReasonableZeroCrossings = zeroCrossingRate > 0.02 && zeroCrossingRate < 0.5
+
+    const hasVoice = hasEnergy && hasSufficientSamples && hasReasonableZeroCrossings
+
+    if (!hasVoice && rmsEnergy > 0.001) {
+      // Log near-threshold audio for debugging
+      console.log(`VAD: Rejected chunk - RMS: ${rmsEnergy.toFixed(4)}, Samples: ${samplesAboveThreshold}, ZCR: ${zeroCrossingRate.toFixed(3)}`)
+    }
+
+    return hasVoice
+  }
+
+  /**
    * Process buffered audio into chunks
    */
   private processBuffer(): void {
@@ -93,6 +146,11 @@ class AudioCapture extends EventEmitter {
 
     // Clear buffer
     this.audioBuffer = []
+
+    // Check for voice activity before processing
+    if (!this.detectVoiceActivity(combined)) {
+      return  // Skip silent chunks
+    }
 
     // Create chunk
     const chunk: AudioChunk = {
@@ -179,5 +237,5 @@ export function float32ToWav(samples: Float32Array, sampleRate: number = SAMPLE_
   return buffer
 }
 
-export { AudioCapture, SAMPLE_RATE, CHUNK_SIZE }
+export { AudioCapture, SAMPLE_RATE, CHUNK_SIZE, VAD_ENERGY_THRESHOLD }
 export type { AudioChunk }

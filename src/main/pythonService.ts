@@ -17,7 +17,7 @@ interface PythonServiceConfig {
 const DEFAULT_CONFIG: PythonServiceConfig = {
   port: 5000,
   host: '127.0.0.1',
-  preload: false
+  preload: true
 }
 
 class PythonService {

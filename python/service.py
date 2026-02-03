@@ -90,17 +90,19 @@ def get_chroma_collection():
 
 
 def get_tts_engine():
-    """Lazy load TTS engine"""
+    """Lazy load TTS engine (pyttsx3)"""
     global tts_engine
     if tts_engine is None:
-        logger.info("Loading TTS engine")
+        logger.info("Loading TTS engine (pyttsx3)")
         try:
-            from TTS.api import TTS
-            # Use a high-quality English model
-            tts_engine = TTS(model_name="tts_models/en/ljspeech/tacotron2-DDC")
+            import pyttsx3
+            tts_engine = pyttsx3.init()
+            # Configure voice settings
+            tts_engine.setProperty('rate', 150)  # Speed of speech
+            tts_engine.setProperty('volume', 1.0)  # Volume (0.0 to 1.0)
             logger.info("TTS engine loaded successfully")
         except Exception as e:
-            logger.warning(f"Failed to load Coqui TTS: {e}. TTS will be unavailable.")
+            logger.warning(f"Failed to load pyttsx3: {e}. TTS will be unavailable.")
             tts_engine = None
     return tts_engine
 
@@ -449,7 +451,7 @@ def detect_intent():
                 intent_type = "action"
         
         return jsonify({
-            'should_respond': max_similarity > threshold,
+            'should_respond': bool(max_similarity > threshold),
             'confidence': float(max_similarity),
             'intent_type': intent_type
         })
@@ -591,7 +593,10 @@ def synthesize_speech():
             temp_path = f.name
         
         try:
-            tts.tts_to_file(text=text, file_path=temp_path, speed=speed)
+            # pyttsx3 save to file
+            tts.setProperty('rate', int(150 * speed))  # Adjust rate based on speed
+            tts.save_to_file(text, temp_path)
+            tts.runAndWait()
             
             # Read and return as base64
             with open(temp_path, 'rb') as f:
