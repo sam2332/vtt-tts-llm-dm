@@ -9,9 +9,10 @@ import type {
   InitiativeEntry,
   SceneMode,
   AppSettings,
-  DMResponse
+  DMResponse,
+  ServiceStatus
 } from '@shared/types'
-import { DEFAULT_SETTINGS, SPEAKER_COLORS } from '@shared/types'
+import { DEFAULT_SETTINGS, SPEAKER_COLORS, INITIAL_SERVICE_STATUS } from '@shared/types'
 
 interface AppState {
   // Session
@@ -48,6 +49,10 @@ interface AppState {
   showSpeakerEnrollment: boolean
   lowConfidenceAlert: { speakerId: string; confidence: number; text: string } | null
   sidebarTab: 'speakers' | 'characters' | 'knowledge'
+  
+  // Service status
+  serviceStatus: ServiceStatus
+  isAppReady: boolean
   
   // Actions
   setSession: (session: SessionState | null) => void
@@ -87,6 +92,12 @@ interface AppState {
   setLowConfidenceAlert: (alert: { speakerId: string; confidence: number; text: string } | null) => void
   setSidebarTab: (tab: 'speakers' | 'characters' | 'knowledge') => void
   
+  // Service status
+  setServiceStatus: (status: Partial<ServiceStatus>) => void
+  setPythonStatus: (status: ServiceStatus['python']) => void
+  setLLMStatus: (status: ServiceStatus['llm']) => void
+  setAppReady: (ready: boolean) => void
+  
   // Reset
   resetState: () => void
 }
@@ -106,7 +117,9 @@ const initialState = {
   showOnboarding: true,
   showSpeakerEnrollment: false,
   lowConfidenceAlert: null,
-  sidebarTab: 'speakers' as const
+  sidebarTab: 'speakers' as const,
+  serviceStatus: INITIAL_SERVICE_STATUS,
+  isAppReady: false
 }
 
 export const useAppStore = create<AppState>()(
@@ -221,6 +234,18 @@ export const useAppStore = create<AppState>()(
       setLowConfidenceAlert: (lowConfidenceAlert) => set({ lowConfidenceAlert }),
       setSidebarTab: (sidebarTab) => set({ sidebarTab }),
       
+      // Service status actions
+      setServiceStatus: (status) => set((state) => ({
+        serviceStatus: { ...state.serviceStatus, ...status }
+      })),
+      setPythonStatus: (python) => set((state) => ({
+        serviceStatus: { ...state.serviceStatus, python }
+      })),
+      setLLMStatus: (llm) => set((state) => ({
+        serviceStatus: { ...state.serviceStatus, llm }
+      })),
+      setAppReady: (isAppReady) => set({ isAppReady }),
+      
       // Reset
       resetState: () => set(initialState)
     }),
@@ -250,3 +275,5 @@ export const useKnowledge = () => useAppStore((state) => state.knowledge)
 export const useInitiative = () => useAppStore((state) => state.initiative)
 export const useSceneMode = () => useAppStore((state) => state.sceneMode)
 export const useSettings = () => useAppStore((state) => state.settings)
+export const useServiceStatus = () => useAppStore((state) => state.serviceStatus)
+export const useIsAppReady = () => useAppStore((state) => state.isAppReady)

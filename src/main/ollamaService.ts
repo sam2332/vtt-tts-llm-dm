@@ -17,7 +17,7 @@ interface OllamaConfig {
 
 const DEFAULT_CONFIG: OllamaConfig = {
   host: 'http://localhost:11434',
-  model: 'mistral:7b-instruct-q4_K_M',
+  model: 'llama3.1:8b',
   temperature: {
     combat: 0.7,
     exploration: 0.9,

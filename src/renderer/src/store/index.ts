@@ -1,1 +1,1 @@
-export { useAppStore, useSession, useIsListening, useSpeakers, useTranscript, useCharacters, useKnowledge, useInitiative, useSceneMode, useSettings } from './appStore'
+export { useAppStore, useSession, useIsListening, useSpeakers, useTranscript, useCharacters, useKnowledge, useInitiative, useSceneMode, useSettings, useServiceStatus, useIsAppReady } from './appStore'

@@ -105,8 +105,8 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-surface rounded-xl w-full max-w-lg mx-4 shadow-xl">
+    <div className="modal-overlay">
+      <div className="modal-content w-full max-w-lg mx-4">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-surface-light">
           <h2 className="font-bold text-lg">Settings</h2>
@@ -197,6 +197,27 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
                 Ollama is offline. Start it to see available models.
               </p>
             )}
+          </div>
+
+          {/* DM Voice (TTS) */}
+          <div>
+            <label className="block text-sm font-medium mb-1">DM Voice (Piper TTS)</label>
+            <select
+              value={localSettings.dmVoice}
+              onChange={(e) => updateSetting('dmVoice', e.target.value)}
+              className="input-field w-full"
+              disabled={pythonStatus !== 'online'}
+            >
+              <option value="default">Default Narrator</option>
+              <option value="narrator">Narrator (Clear)</option>
+              <option value="male_deep">Male (Deep)</option>
+              <option value="female">Female</option>
+              <option value="elderly">Elderly (British)</option>
+              <option value="young">Young</option>
+            </select>
+            <p className="text-xs text-text-secondary mt-1">
+              Voice used for DM narration. NPC voices can be specified per-character.
+            </p>
           </div>
 
           {/* Temperature Settings */}

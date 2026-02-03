@@ -38,8 +38,8 @@ export function KnowledgeModal({ onClose }: KnowledgeModalProps) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-surface rounded-xl w-full max-w-lg mx-4 shadow-xl">
+    <div className="modal-overlay">
+      <div className="modal-content w-full max-w-lg mx-4">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-surface-light">
           <h2 className="font-bold text-lg">Add Campaign Knowledge</h2>

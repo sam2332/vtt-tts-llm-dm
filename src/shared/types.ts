@@ -97,6 +97,30 @@ export interface SpeakerConfidence {
   alternatives: Array<{ speakerId: string; confidence: number }>
 }
 
+// Service Status
+export interface ServiceStatus {
+  python: {
+    status: 'starting' | 'ready' | 'error' | 'stopped'
+    message?: string
+    services?: {
+      whisper: boolean
+      embeddings: boolean
+      chromadb: boolean
+      tts: boolean
+    }
+  }
+  llm: {
+    status: 'checking' | 'ready' | 'error' | 'stopped'
+    message?: string
+    model?: string
+  }
+}
+
+export const INITIAL_SERVICE_STATUS: ServiceStatus = {
+  python: { status: 'stopped' },
+  llm: { status: 'stopped' }
+}
+
 // App settings
 export interface AppSettings {
   autoSaveInterval: number // minutes
@@ -114,7 +138,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   autoSaveInterval: 5,
   intentThreshold: 0.75,
   whisperModel: 'base',
-  llmModel: 'mistral:7b-instruct-q4_K_M',
+  llmModel: 'llama3.1:8b',
   llmTemperature: { combat: 0.7, exploration: 0.9, rp: 0.8 },
   dmVoice: 'default',
   confidenceThreshold: 0.6,

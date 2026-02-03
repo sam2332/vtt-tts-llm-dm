@@ -33,7 +33,7 @@ tts_engine = None
 
 # Configuration
 CONFIG = {
-    'whisper_model': 'base.en',
+    'whisper_model': os.environ.get('WHISPER_MODEL', 'small.en'),  # Options: tiny.en, base.en, small.en, medium.en, large-v3
     'embedding_model': 'all-MiniLM-L6-v2',
     'sample_rate': 16000,
     'data_dir': os.environ.get('AI_DM_DATA_DIR', './data')
@@ -89,20 +89,55 @@ def get_chroma_collection():
     return chroma_collection
 
 
+# Piper TTS voice configurations
+PIPER_VOICES = {
+    'default': 'en_US-lessac-medium',  # Default narrator voice
+    'narrator': 'en_US-lessac-medium',
+    'male_deep': 'en_US-ryan-medium',
+    'female': 'en_US-amy-medium', 
+    'elderly': 'en_GB-alan-medium',
+    'young': 'en_US-libritts-high',
+}
+
+piper_voice_cache = {}  # Cache loaded Piper voice models
+
+def get_piper_voice(voice_name: str = 'default'):
+    """Get or load a Piper voice model"""
+    global piper_voice_cache
+    
+    voice_id = PIPER_VOICES.get(voice_name, PIPER_VOICES['default'])
+    
+    if voice_id not in piper_voice_cache:
+        logger.info(f"Loading Piper voice: {voice_id}")
+        try:
+            from piper import PiperVoice
+            
+            # Piper will auto-download models to cache
+            data_dir = Path(CONFIG['data_dir']) / 'piper_voices'
+            data_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Try to load the voice
+            piper_voice_cache[voice_id] = PiperVoice.load(voice_id, data_dir=str(data_dir))
+            logger.info(f"Piper voice {voice_id} loaded successfully")
+        except Exception as e:
+            logger.warning(f"Failed to load Piper voice {voice_id}: {e}")
+            return None
+            
+    return piper_voice_cache.get(voice_id)
+
+
 def get_tts_engine():
-    """Lazy load TTS engine (pyttsx3)"""
+    """Check if TTS (Piper) is available"""
     global tts_engine
     if tts_engine is None:
-        logger.info("Loading TTS engine (pyttsx3)")
+        logger.info("Checking Piper TTS availability")
         try:
-            import pyttsx3
-            tts_engine = pyttsx3.init()
-            # Configure voice settings
-            tts_engine.setProperty('rate', 150)  # Speed of speech
-            tts_engine.setProperty('volume', 1.0)  # Volume (0.0 to 1.0)
-            logger.info("TTS engine loaded successfully")
-        except Exception as e:
-            logger.warning(f"Failed to load pyttsx3: {e}. TTS will be unavailable.")
+            from piper import PiperVoice
+            # Just verify piper is importable
+            tts_engine = 'piper'
+            logger.info("Piper TTS is available")
+        except ImportError as e:
+            logger.warning(f"Piper TTS not available: {e}")
             tts_engine = None
     return tts_engine
 
@@ -561,10 +596,19 @@ def search_knowledge():
 
 # ============== Text-to-Speech ==============
 
+@app.route('/voices', methods=['GET'])
+def list_voices():
+    """List available TTS voices"""
+    return jsonify({
+        'voices': list(PIPER_VOICES.keys()),
+        'default': 'default'
+    })
+
+
 @app.route('/synthesize', methods=['POST'])
 def synthesize_speech():
     """
-    Synthesize speech from text
+    Synthesize speech from text using Piper TTS
     
     Request body:
     {
@@ -573,7 +617,11 @@ def synthesize_speech():
         "speed": 1.0
     }
     
-    Response: audio/wav binary
+    Response:
+    {
+        "audio_data": "<base64 encoded wav>",
+        "format": "wav"
+    }
     """
     try:
         data = request.json
@@ -584,19 +632,37 @@ def synthesize_speech():
         if not text:
             return jsonify({'error': 'No text provided'}), 400
         
-        tts = get_tts_engine()
-        if tts is None:
+        # Check if Piper is available
+        if get_tts_engine() is None:
             return jsonify({'error': 'TTS engine not available'}), 503
+        
+        # Get the Piper voice
+        piper_voice = get_piper_voice(voice)
+        if piper_voice is None:
+            # Fallback to default voice
+            piper_voice = get_piper_voice('default')
+            if piper_voice is None:
+                return jsonify({'error': f'Voice "{voice}" not available and default failed'}), 503
         
         # Generate speech to temp file
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as f:
             temp_path = f.name
         
         try:
-            # pyttsx3 save to file
-            tts.setProperty('rate', int(150 * speed))  # Adjust rate based on speed
-            tts.save_to_file(text, temp_path)
-            tts.runAndWait()
+            import wave
+            
+            # Synthesize with Piper
+            # Piper returns raw audio samples
+            audio_samples = list(piper_voice.synthesize(text, length_scale=1.0/speed))
+            
+            # Write to WAV file
+            with wave.open(temp_path, 'wb') as wav_file:
+                wav_file.setnchannels(1)  # Mono
+                wav_file.setsampwidth(2)  # 16-bit
+                wav_file.setframerate(piper_voice.config.sample_rate)
+                
+                for audio_bytes in audio_samples:
+                    wav_file.writeframes(audio_bytes)
             
             # Read and return as base64
             with open(temp_path, 'rb') as f:
@@ -604,7 +670,8 @@ def synthesize_speech():
             
             return jsonify({
                 'audio_data': base64.b64encode(audio_data).decode('utf-8'),
-                'format': 'wav'
+                'format': 'wav',
+                'voice': voice
             })
         finally:
             if os.path.exists(temp_path):
@@ -612,6 +679,8 @@ def synthesize_speech():
                 
     except Exception as e:
         logger.error(f"TTS error: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 

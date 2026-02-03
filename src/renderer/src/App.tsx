@@ -1,12 +1,14 @@
 import { useEffect, useCallback } from 'react'
-import { useAppStore } from './store'
+import { useAppStore, useIsAppReady } from './store'
 import { Layout } from './components/Layout'
 import { OnboardingWizard } from './components/OnboardingWizard'
+import { StartupScreen } from './components/StartupScreen'
 import type { TranscriptSegment, DMResponse } from '@shared/types'
 
 function App() {
   const showOnboarding = useAppStore((state) => state.showOnboarding)
   const session = useAppStore((state) => state.session)
+  const isAppReady = useIsAppReady()
   const addTranscriptSegment = useAppStore((state) => state.addTranscriptSegment)
 
   // Handle incoming transcript updates from main process
@@ -47,6 +49,11 @@ function App() {
       unsubDM?.()
     }
   }, [handleTranscriptUpdate, handleDMResponse])
+
+  // Show startup screen while services are initializing
+  if (!isAppReady) {
+    return <StartupScreen />
+  }
 
   // Show onboarding wizard if no session exists
   if (showOnboarding && !session) {

@@ -63,6 +63,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   llmClearHistory: () => ipcRenderer.invoke('llm-clear-history'),
   generateDMResponse: (context: unknown) => 
     ipcRenderer.invoke('llm-generate-response', context),
+
+  // DM state management
+  setSceneMode: (mode: 'combat' | 'exploration' | 'rp') => 
+    ipcRenderer.invoke('dm-set-scene-mode', mode),
+  setSceneDescription: (description: string) => 
+    ipcRenderer.invoke('dm-set-scene-description', description),
+  setActiveNPCs: (npcs: string[]) => 
+    ipcRenderer.invoke('dm-set-active-npcs', npcs),
+  setCharacterStats: (stats: string) => 
+    ipcRenderer.invoke('dm-set-character-stats', stats),
+  clearTranscriptHistory: () => 
+    ipcRenderer.invoke('dm-clear-transcript-history'),
+  forceDMResponse: (promptText?: string) => 
+    ipcRenderer.invoke('dm-force-response', promptText),
   
   // Event listeners
   onTranscriptUpdate: (callback: (data: unknown) => void) => {
@@ -78,9 +92,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeAllListeners('speaker-identified')
   },
   onLowConfidence: (callback: (data: unknown) => void) => {
-    ipcRenderer.on('low-confidence', (_event, data) => callback(data))
-    return () => ipcRenderer.removeAllListeners('low-confidence')
-  }
+    const handler = (_event: Electron.IpcRendererEvent, data: unknown) => callback(data)
+    ipcRenderer.on('low-confidence', handler)
+    return () => ipcRenderer.removeListener('low-confidence', handler)
+  },
+  onServiceStatus: (callback: (data: unknown) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: unknown) => callback(data)
+    ipcRenderer.on('service-status', handler)
+    return () => ipcRenderer.removeListener('service-status', handler)
+  },
+  
+  // Request service initialization
+  initializeServices: () => ipcRenderer.invoke('initialize-services')
 })
 
 // Type definitions are in src/renderer/src/electron.d.ts

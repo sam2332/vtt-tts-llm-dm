@@ -8,6 +8,18 @@ import { getPythonService } from './pythonService'
 let mainWindow: BrowserWindow | null = null
 const pythonService = getPythonService()
 
+// Service initialization tracking
+let isInitializing = false
+
+// State tracking for DM response context
+let currentSceneMode: 'combat' | 'exploration' | 'rp' = 'exploration'
+let currentSceneDescription: string = 'The adventure continues...'
+let recentTranscriptBuffer: Array<{ speaker: string; text: string }> = []
+let activeNPCs: string[] = []
+let characterStatsCache: string = ''
+
+const MAX_TRANSCRIPT_HISTORY = 10 // Keep last 10 utterances for context
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -92,6 +104,25 @@ function setupAudioProcessing() {
         console.log('Diarization unavailable, using unknown speaker:', (diarizationError as Error).message)
       }
 
+      // Add to recent transcript buffer for LLM context
+      recentTranscriptBuffer.push({
+        speaker: diarization.speaker_id,
+        text: transcription.text
+      })
+      // Keep only the last N entries
+      if (recentTranscriptBuffer.length > MAX_TRANSCRIPT_HISTORY) {
+        recentTranscriptBuffer = recentTranscriptBuffer.slice(-MAX_TRANSCRIPT_HISTORY)
+      }
+      
+      // Check for low confidence and emit alert
+      if (diarization.confidence < 0.6 && diarization.speaker_id !== 'unknown') {
+        mainWindow.webContents.send('low-confidence', {
+          speakerId: diarization.speaker_id,
+          confidence: diarization.confidence,
+          text: transcription.text
+        })
+      }
+
       // Send to renderer
       mainWindow.webContents.send('transcript-update', {
         text: transcription.text,
@@ -107,15 +138,15 @@ function setupAudioProcessing() {
         // Search knowledge base for context
         const knowledge = await pythonService.searchKnowledge(transcription.text, 3)
         
-        // Generate LLM response
+        // Generate LLM response with actual state
         const ollama = getOllamaService()
         const response = await ollama.generateResponse({
-          sceneMode: 'exploration', // TODO: Get from state
-          sceneDescription: 'The adventure continues...',
-          recentTranscript: [{ speaker: diarization.speaker_id, text: transcription.text }],
+          sceneMode: currentSceneMode,
+          sceneDescription: currentSceneDescription,
+          recentTranscript: [...recentTranscriptBuffer], // Pass full context
           relevantKnowledge: knowledge.results.map(r => r.content),
-          characterStats: '',
-          activeNPCs: []
+          characterStats: characterStatsCache,
+          activeNPCs: activeNPCs
         })
         
         if (response.action === 'respond' && response.text) {
@@ -152,20 +183,14 @@ app.whenReady().then(async () => {
   setupAudioIPC()
   setupLLMIPC()
   setupPythonIPC()
+  setupServiceInitIPC()
   
   // Set up audio processing pipeline
   setupAudioProcessing()
 
   createWindow()
   
-  // Try to start Python service (optional, may not be available)
-  try {
-    await pythonService.start()
-    console.log('Python service started')
-  } catch (error) {
-    console.warn('Python service not available:', error)
-    console.warn('Some features will be disabled')
-  }
+  // Services will be initialized when renderer requests via IPC
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -221,6 +246,105 @@ function setupPythonIPC() {
   })
 }
 
+// Service initialization IPC handler
+function setupServiceInitIPC() {
+  ipcMain.handle('initialize-services', async () => {
+    console.log('initialize-services IPC handler called')
+    
+    // Helper to send status updates
+    const sendStatus = (status: Record<string, unknown>) => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        console.log('Sending service status:', JSON.stringify(status))
+        mainWindow.webContents.send('service-status', status)
+      } else {
+        console.warn('Cannot send status - mainWindow not available')
+      }
+    }
+    
+    // Check if Python service is already running
+    if (pythonService.running) {
+      console.log('Python service already running, sending current status')
+      try {
+        const health = await pythonService.getHealth()
+        sendStatus({ 
+          python: { 
+            status: 'ready', 
+            message: 'Python service ready',
+            services: health.services
+          } 
+        })
+      } catch {
+        sendStatus({ python: { status: 'error', message: 'Python service error' } })
+      }
+    } else if (isInitializing) {
+      // Already initializing, just send starting status
+      console.log('Python service is initializing...')
+      sendStatus({ python: { status: 'starting', message: 'Starting Python ML service...' } })
+    } else {
+      // Start Python service
+      isInitializing = true
+      sendStatus({ python: { status: 'starting', message: 'Starting Python ML service...' } })
+      
+      try {
+        await pythonService.start()
+        const health = await pythonService.getHealth()
+        sendStatus({ 
+          python: { 
+            status: 'ready', 
+            message: 'Python service ready',
+            services: health.services
+          } 
+        })
+        console.log('Python service started')
+      } catch (error) {
+        const errorMessage = (error as Error).message
+        sendStatus({ 
+          python: { 
+            status: 'error', 
+            message: `Python service failed: ${errorMessage}` 
+          } 
+        })
+        console.warn('Python service not available:', error)
+      } finally {
+        isInitializing = false
+      }
+    }
+    
+    // Check LLM service
+    sendStatus({ llm: { status: 'checking', message: 'Checking Ollama connection...' } })
+    
+    try {
+      const ollama = getOllamaService()
+      const healthy = await ollama.checkHealth()
+      
+      if (healthy) {
+        const models = await ollama.listModels()
+        sendStatus({ 
+          llm: { 
+            status: 'ready', 
+            message: 'Ollama connected',
+            model: models[0] || 'No models found'
+          } 
+        })
+      } else {
+        sendStatus({ 
+          llm: { 
+            status: 'error', 
+            message: 'Ollama not responding. Is it running?' 
+          } 
+        })
+      }
+    } catch (error) {
+      sendStatus({ 
+        llm: { 
+          status: 'error', 
+          message: 'Could not connect to Ollama' 
+        } 
+      })
+    }
+  })
+}
+
 // IPC Handlers
 ipcMain.handle('get-app-version', () => {
   return app.getVersion()
@@ -248,4 +372,83 @@ ipcMain.handle('ask-for-media-access', async () => {
   // On Windows, permission is requested when getUserMedia is called
   // Return true to indicate the app can attempt to access the microphone
   return true
+})
+
+// DM state management handlers
+ipcMain.handle('dm-set-scene-mode', (_event, mode: 'combat' | 'exploration' | 'rp') => {
+  currentSceneMode = mode
+  return { success: true, sceneMode: mode }
+})
+
+ipcMain.handle('dm-set-scene-description', (_event, description: string) => {
+  currentSceneDescription = description
+  return { success: true }
+})
+
+ipcMain.handle('dm-set-active-npcs', (_event, npcs: string[]) => {
+  activeNPCs = npcs
+  return { success: true }
+})
+
+ipcMain.handle('dm-set-character-stats', (_event, stats: string) => {
+  characterStatsCache = stats
+  return { success: true }
+})
+
+ipcMain.handle('dm-clear-transcript-history', () => {
+  recentTranscriptBuffer = []
+  return { success: true }
+})
+
+// Force DM response - bypasses intent detection
+ipcMain.handle('dm-force-response', async (_event, promptText?: string) => {
+  if (!mainWindow) return { success: false, error: 'No window' }
+  
+  if (!pythonService.running) {
+    return { success: false, error: 'Python service not running' }
+  }
+  
+  try {
+    // Search knowledge base for context
+    const query = promptText || recentTranscriptBuffer[recentTranscriptBuffer.length - 1]?.text || 'Continue the adventure'
+    const knowledge = await pythonService.searchKnowledge(query, 3)
+    
+    // Generate LLM response
+    const ollama = getOllamaService()
+    const response = await ollama.generateResponse({
+      sceneMode: currentSceneMode,
+      sceneDescription: currentSceneDescription,
+      recentTranscript: promptText 
+        ? [...recentTranscriptBuffer, { speaker: 'DM Prompt', text: promptText }]
+        : [...recentTranscriptBuffer],
+      relevantKnowledge: knowledge.results.map(r => r.content),
+      characterStats: characterStatsCache,
+      activeNPCs: activeNPCs
+    })
+    
+    if (response.action === 'respond' && response.text) {
+      // Synthesize speech
+      try {
+        const audio = await pythonService.synthesize(response.text, response.npcVoice)
+        mainWindow.webContents.send('dm-response', {
+          text: response.text,
+          audioData: audio.audio_data,
+          npcVoice: response.npcVoice
+        })
+      } catch (ttsError) {
+        console.error('TTS error:', ttsError)
+        mainWindow.webContents.send('dm-response', {
+          text: response.text,
+          npcVoice: response.npcVoice
+        })
+      }
+      
+      return { success: true, text: response.text }
+    }
+    
+    return { success: false, error: 'LLM chose not to respond' }
+  } catch (error) {
+    console.error('Force DM response error:', error)
+    return { success: false, error: (error as Error).message }
+  }
 })

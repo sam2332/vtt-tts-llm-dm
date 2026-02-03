@@ -4,7 +4,8 @@ import type {
   KnowledgeEntry, 
   CharacterSheet,
   SessionState,
-  DMResponse 
+  DMResponse,
+  ServiceStatus
 } from '../shared/types'
 
 export interface ElectronAPI {
@@ -68,11 +69,23 @@ export interface ElectronAPI {
     sceneMode: string
   }) => Promise<DMResponse>
 
+  // DM state management
+  setSceneMode: (mode: 'combat' | 'exploration' | 'rp') => Promise<{ success: boolean; sceneMode: string }>
+  setSceneDescription: (description: string) => Promise<{ success: boolean }>
+  setActiveNPCs: (npcs: string[]) => Promise<{ success: boolean }>
+  setCharacterStats: (stats: string) => Promise<{ success: boolean }>
+  clearTranscriptHistory: () => Promise<{ success: boolean }>
+  forceDMResponse: (promptText?: string) => Promise<{ success: boolean; text?: string; error?: string }>
+
   // Event listeners (return unsubscribe function)
   onTranscriptUpdate: (callback: (segment: TranscriptSegment) => void) => () => void
   onDMResponse: (callback: (response: DMResponse) => void) => () => void
   onSpeakerIdentified: (callback: (data: { speakerId: string; confidence: number }) => void) => () => void
   onLowConfidence: (callback: (data: { segment: TranscriptSegment; suggestions: string[] }) => void) => () => void
+  onServiceStatus: (callback: (status: Partial<ServiceStatus>) => void) => () => void
+  
+  // Service initialization
+  initializeServices: () => Promise<void>
 }
 
 declare global {

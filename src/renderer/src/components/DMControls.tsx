@@ -1,15 +1,47 @@
-import { useState } from 'react'
-import { useIsListening, useSceneMode } from '../store'
+import { useState, useEffect } from 'react'
+import { useIsListening, useSceneMode, useAppStore } from '../store'
 import { KnowledgeModal } from './KnowledgeModal'
 
 export function DMControls() {
   const isListening = useIsListening()
   const sceneMode = useSceneMode()
+  const setSceneMode = useAppStore((state) => state.setSceneMode)
+  const characters = useAppStore((state) => state.characters)
   const [showKnowledgeModal, setShowKnowledgeModal] = useState(false)
+  const [isForcing, setIsForcing] = useState(false)
 
-  const handleForceResponse = () => {
-    // TODO: Trigger LLM response
-    console.log('Force DM response')
+  // Sync scene mode with main process when it changes
+  useEffect(() => {
+    window.electronAPI?.setSceneMode(sceneMode)
+  }, [sceneMode])
+
+  // Sync character stats with main process when characters change
+  useEffect(() => {
+    if (characters.length > 0) {
+      const statsText = characters.map(c => 
+        `${c.name} (${c.class} Lv${c.level}): STR ${c.stats.str}, DEX ${c.stats.dex}, CON ${c.stats.con}, INT ${c.stats.int}, WIS ${c.stats.wis}, CHA ${c.stats.cha}`
+      ).join('\n')
+      window.electronAPI?.setCharacterStats(statsText)
+    }
+  }, [characters])
+
+  const handleForceResponse = async () => {
+    if (isForcing) return
+    setIsForcing(true)
+    try {
+      const result = await window.electronAPI?.forceDMResponse()
+      if (!result?.success && result?.error) {
+        console.error('Force response failed:', result.error)
+      }
+    } catch (error) {
+      console.error('Force DM response error:', error)
+    } finally {
+      setIsForcing(false)
+    }
+  }
+
+  const handleModeChange = (mode: 'combat' | 'exploration' | 'rp') => {
+    setSceneMode(mode)
   }
 
   const handleAddKnowledge = () => {
@@ -48,9 +80,21 @@ export function DMControls() {
 
         <div className="flex items-center gap-2">
           <span className="text-sm text-text-secondary">Mode:</span>
-          <span className={`text-sm font-medium ${modeColors[sceneMode]}`}>
-            {modeLabels[sceneMode]}
-          </span>
+          <div className="flex gap-1">
+            {(['combat', 'exploration', 'rp'] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => handleModeChange(mode)}
+                className={`text-xs px-2 py-1 rounded transition-colors ${
+                  sceneMode === mode 
+                    ? `${modeColors[mode]} bg-surface-light font-medium` 
+                    : 'text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                {modeLabels[mode]}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="flex-1" />
@@ -59,10 +103,11 @@ export function DMControls() {
         <div className="flex gap-2">
           <button 
             onClick={handleForceResponse}
-            className="btn-secondary text-sm"
+            disabled={isForcing}
+            className={`btn-secondary text-sm ${isForcing ? 'opacity-50 cursor-not-allowed' : ''}`}
             title="Force the DM to respond now"
           >
-            🎲 Force Response
+            {isForcing ? '⏳ Generating...' : '🎲 Force Response'}
           </button>
           <button 
             onClick={handleAddKnowledge}
