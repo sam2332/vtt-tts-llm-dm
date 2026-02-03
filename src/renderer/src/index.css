@@ -1,0 +1,232 @@
+@import "tailwindcss";
+
+/* Base styles */
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: #1e1e2e;
+  color: #cdd6f4;
+  overflow: hidden;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e1e2e;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3a3a4c;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #4a4a5c;
+}
+
+/* Draggable title bar region */
+.titlebar-drag-region {
+  -webkit-app-region: drag;
+}
+
+.titlebar-no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* Animation keyframes */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(137, 180, 250, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(137, 180, 250, 0);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s infinite;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+/* Speaker avatar styles */
+.speaker-avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+
+/* Message styles */
+.message-dm {
+  background-color: rgba(249, 226, 175, 0.1);
+  border-left: 4px solid #f9e2af;
+}
+
+.message-player {
+  background-color: #2a2a3c;
+  transition: background-color 0.2s;
+}
+
+.message-player:hover {
+  background-color: #3a3a4c;
+}
+
+/* Button styles */
+.btn-primary {
+  background-color: #89b4fa;
+  color: #1e1e2e;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  transition: background-color 0.2s;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  background-color: rgba(137, 180, 250, 0.8);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background-color: #2a2a3c;
+  color: #cdd6f4;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  transition: background-color 0.2s;
+  border: 1px solid #3a3a4c;
+  cursor: pointer;
+}
+
+.btn-secondary:hover {
+  background-color: #3a3a4c;
+}
+
+.btn-danger {
+  background-color: rgba(243, 139, 168, 0.2);
+  color: #f38ba8;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  transition: background-color 0.2s;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-danger:hover {
+  background-color: rgba(243, 139, 168, 0.3);
+}
+
+.btn-icon {
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  background: none;
+  border: none;
+  color: #bac2de;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-icon:hover {
+  background-color: #3a3a4c;
+  color: #cdd6f4;
+}
+
+/* Input styles */
+.input-field {
+  background-color: #2a2a3c;
+  border: 1px solid #3a3a4c;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  color: #cdd6f4;
+  transition: all 0.2s;
+}
+
+.input-field::placeholder {
+  color: rgba(186, 194, 222, 0.5);
+}
+
+.input-field:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #89b4fa;
+  border-color: transparent;
+}
+
+.textarea-field {
+  background-color: #2a2a3c;
+  border: 1px solid #3a3a4c;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  color: #cdd6f4;
+  transition: all 0.2s;
+  resize: none;
+}
+
+.textarea-field::placeholder {
+  color: rgba(186, 194, 222, 0.5);
+}
+
+.textarea-field:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px #89b4fa;
+  border-color: transparent;
+}
+
+/* Card styles */
+.card {
+  background-color: #2a2a3c;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  border: 1px solid rgba(58, 58, 76, 0.5);
+}
+
+/* Color variables for reference */
+:root {
+  --background: #1e1e2e;
+  --surface: #2a2a3c;
+  --surface-light: #3a3a4c;
+  --text-primary: #cdd6f4;
+  --text-secondary: #bac2de;
+  --accent: #89b4fa;
+  --dm-gold: #f9e2af;
+  --error: #f38ba8;
+  --success: #a6e3a1;
+  --warning: #fab387;
+}
